@@ -1,3 +1,13 @@
+# Fork Description
+
+My custom [voice assistant project](https://github.com/stocyr/letta-voice-agent) focusses on Swiss German language and thus requires [Picovoice porcupine](https://github.com/Picovoice/porcupine) with custom wakewords, which is only supported from v2.0 on. However, this version of porcupine also introduced a subscription requirement, which the original RealtimeSTT developer doesn't want to impose on his users (see [this](https://github.com/KoljaB/RealtimeSTT/issues/147) and [this](https://github.com/KoljaB/RealtimeSTT/issues/64)).
+
+This fork bumps the Picovoice porcupine version inside the RealtimeSTT to the v3.0 and introduces support for [custom porcupine wakewords](https://picovoice.ai/blog/console-tutorial-custom-wake-word/).
+
+_Original README:_
+
+---
+
 # RealtimeSTT
 [![PyPI](https://img.shields.io/pypi/v/RealtimeSTT)](https://pypi.org/project/RealtimeSTT/)
 [![Downloads](https://static.pepy.tech/badge/RealtimeSTT)](https://www.pepy.tech/projects/realtimestt)
