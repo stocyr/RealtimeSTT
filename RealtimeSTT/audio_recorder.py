@@ -25,6 +25,7 @@ Features:
 Author: Kolja Beigel
 
 """
+from pathlib import Path
 
 from faster_whisper import WhisperModel, BatchedInferencePipeline
 from typing import Iterable, List, Optional, Union
@@ -306,7 +307,9 @@ class AudioToTextRecorder:
                  wakeword_backend: str = "",
                  openwakeword_model_paths: str = None,
                  openwakeword_inference_framework: str = "onnx",
-                 wake_words: str = "",
+                 wake_words: Optional[list | str] = None,
+                 pvporcupine_access_key: str = "",
+                 pvporcupine_model_path: Optional[str] = None,
                  wake_words_sensitivity: float = INIT_WAKE_WORDS_SENSITIVITY,
                  wake_word_activation_delay: float = (
                     INIT_WAKE_WORD_ACTIVATION_DELAY
@@ -481,14 +484,19 @@ class AudioToTextRecorder:
             the inference framework to use with the openwakeword library.
             Can be either 'onnx' for Open Neural Network Exchange format 
             or 'tflite' for TensorFlow Lite.
-        - wake_words (str, default=""): Comma-separated string of wake words to
+        - wake_words (list or str, default=None): Comma-separated string of wake words to
             initiate recording when using the 'pvporcupine' wakeword backend.
             Supported wake words include: 'alexa', 'americano', 'blueberry',
             'bumblebee', 'computer', 'grapefruits', 'grasshopper', 'hey google',
             'hey siri', 'jarvis', 'ok google', 'picovoice', 'porcupine',
             'terminator'. For the 'openwakeword' backend, wake words are
             automatically extracted from the provided model files, so specifying
-            them here is not necessary.
+            them here is not necessary. If given list of strings which are valid paths,
+            they are interpreted as absolute paths to custom pvporcupine keywords.
+        - pvporcupine_access_key (str, default=""): Picovoice access key (obtainable
+            for free with limited usage plan on Picovoice website).
+        - pvporcupine_model_path (str, default=""): Path to model for custom
+            pvporcupine wakeword.
         - wake_words_sensitivity (float, default=0.5): Sensitivity for wake
             word detection, ranging from 0 (least sensitive) to 1 (most
             sensitive). Default is 0.5.
@@ -578,6 +586,8 @@ class AudioToTextRecorder:
         self.gpu_device_index = gpu_device_index
         self.device = device
         self.wake_words = wake_words
+        self.pvporcupine_access_key = pvporcupine_access_key
+        self.pvporcupine_model_path = pvporcupine_model_path
         self.wake_word_activation_delay = wake_word_activation_delay
         self.wake_word_timeout = wake_word_timeout
         self.wake_word_buffer_duration = wake_word_buffer_duration
@@ -667,7 +677,7 @@ class AudioToTextRecorder:
         self.initial_prompt = initial_prompt
         self.initial_prompt_realtime = initial_prompt_realtime
         self.suppress_tokens = suppress_tokens
-        self.use_wake_words = wake_words or wakeword_backend in {'oww', 'openwakeword', 'openwakewords'}
+        self.use_wake_words = wake_words is not None or wakeword_backend in {'oww', 'openwakeword', 'openwakewords'}
         self.detected_language = None
         self.detected_language_probability = 0
         self.detected_realtime_language = None
@@ -813,12 +823,16 @@ class AudioToTextRecorder:
                           "transcription model initialized successfully")
 
         # Setup wake word detection
-        if wake_words or wakeword_backend in {'oww', 'openwakeword', 'openwakewords', 'pvp', 'pvporcupine'}:
+        if wake_words is not None or wakeword_backend in {'oww', 'openwakeword', 'openwakewords', 'pvp', 'pvporcupine'}:
             self.wakeword_backend = wakeword_backend
 
+            if isinstance(wake_words, list):
+                self.wake_words_list = wake_words
+            else:
             self.wake_words_list = [
                 word.strip() for word in wake_words.lower().split(',')
             ]
+
             self.wake_words_sensitivity = wake_words_sensitivity
             self.wake_words_sensitivities = [
                 float(wake_words_sensitivity)
@@ -829,8 +843,11 @@ class AudioToTextRecorder:
 
                 try:
                     self.porcupine = pvporcupine.create(
-                        keywords=self.wake_words_list,
-                        sensitivities=self.wake_words_sensitivities
+                        access_key=self.pvporcupine_access_key,
+                        model_path=self.pvporcupine_model_path,
+                        keyword_paths=wake_words if all(Path(w).exists() for w in wake_words) else None,
+                        keywords=self.wake_words_list or None,
+                        sensitivities=self.wake_words_sensitivities,
                     )
                     self.buffer_size = self.porcupine.frame_length
                     self.sample_rate = self.porcupine.sample_rate
