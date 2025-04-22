@@ -829,9 +829,7 @@ class AudioToTextRecorder:
             if isinstance(wake_words, list):
                 self.wake_words_list = wake_words
             else:
-            self.wake_words_list = [
-                word.strip() for word in wake_words.lower().split(',')
-            ]
+                self.wake_words_list = [word.strip() for word in wake_words.lower().split(',')]
 
             self.wake_words_sensitivity = wake_words_sensitivity
             self.wake_words_sensitivities = [
